@@ -41,8 +41,8 @@ body {
 h1 { margin: 2px 0 4px; font-size: 1.4rem; }
 .lede { margin: 0; color: var(--muted); }
 .hidden { display: none !important; }
-
-.screen { display: flex; flex-direction: column; gap: 12px; }
+.screen { display: none; flex-direction: column; gap: 12px; min-height: 80vh; }
+.screen.active { display: flex; }
 .glass {
   background: var(--panel);
   border: 1px solid var(--stroke);

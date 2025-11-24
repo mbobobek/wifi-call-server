@@ -21,7 +21,7 @@ const debugSignal = document.getElementById('debug-signal');
 // Screens
 const screens = {
   home: document.getElementById('screen-home'),
-  outgoing: document.getElementById('screen-outgoing'),
+  calling: document.getElementById('screen-calling'),
   incoming: document.getElementById('screen-incoming'),
   incall: document.getElementById('screen-incall')
 };
@@ -64,10 +64,10 @@ const log = (text) => {
   logEl.scrollTop = logEl.scrollHeight;
 };
 
-const setScreen = (name) => {
+const showScreen = (name) => {
   Object.entries(screens).forEach(([key, el]) => {
     if (!el) return;
-    el.classList.toggle('hidden', key !== name);
+    el.classList.toggle('active', key === name);
   });
 };
 
@@ -78,21 +78,21 @@ const setState = (state, note) => {
   updateDebug();
 
   if (state === CallState.IDLE || state === CallState.ENDED) {
-    setScreen('home');
+    showScreen('home');
     ringEl.textContent = '';
     stopTimer();
     hangupBtn.disabled = true;
     muteBtn.disabled = true;
   } else if (state === CallState.CALLING_OUT) {
-    setScreen('outgoing');
+    showScreen('calling');
     hangupBtn.disabled = true;
     muteBtn.disabled = true;
   } else if (state === CallState.RINGING_IN) {
-    setScreen('incoming');
+    showScreen('incoming');
     hangupBtn.disabled = true;
     muteBtn.disabled = true;
   } else if (state === CallState.CONNECTING || state === CallState.IN_CALL) {
-    setScreen('incall');
+    showScreen('incall');
     hangupBtn.disabled = false;
     muteBtn.disabled = state === CallState.CONNECTING; // mute faqat ulanishdan keyin
   }
