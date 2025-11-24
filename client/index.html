@@ -8,9 +8,18 @@
 </head>
 <body>
   <main class="layout">
-    <header>
-      <h1>WiFi VoIP (LAN)</h1>
-      <p>Onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling (xona kerak emas).</p>
+    <header class="hero">
+      <div class="brand">
+        <div class="brand-mark">WCA</div>
+        <div>
+          <h1>WiFi-Call-App</h1>
+          <p>Onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling. Xona kerak emas.</p>
+        </div>
+      </div>
+      <div class="theme-toggle">
+        <button id="theme-dark" class="ghost active">Dark</button>
+        <button id="theme-light" class="ghost">Light</button>
+      </div>
     </header>
 
     <section class="card">
@@ -20,14 +29,14 @@
     </section>
 
     <section class="card controls">
-      <button id="connect">Onlayn bo'lish</button>
-      <div class="btns">
-        <button id="hangup" disabled>Uzish</button>
-        <button id="mute" disabled>Mute</button>
+      <div class="control-row">
+        <div class="status-chip">Holat: <span id="status">tayyor emas</span></div>
+        <div class="ringing" id="ring"></div>
       </div>
-      <div class="status-row">
-        <div class="status-dot"></div>
-        <div id="status">Holat: tayyor emas</div>
+      <button id="connect" class="primary">Onlayn bo'lish</button>
+      <div class="btns">
+        <button id="hangup" class="danger" disabled>Uzish</button>
+        <button id="mute" class="secondary" disabled>Mute</button>
       </div>
     </section>
 
@@ -49,6 +58,18 @@
     window.TURN_URL = '';
     window.TURN_USER = '';
     window.TURN_PASS = '';
+    // Light/Dark UI toggle (faqat ko'rinish uchun)
+    const body = document.body;
+    const darkBtn = document.getElementById('theme-dark');
+    const lightBtn = document.getElementById('theme-light');
+    const setTheme = (mode) => {
+      body.classList.toggle('theme-light', mode === 'light');
+      body.classList.toggle('theme-dark', mode === 'dark');
+      darkBtn.classList.toggle('active', mode === 'dark');
+      lightBtn.classList.toggle('active', mode === 'light');
+    };
+    darkBtn.onclick = () => setTheme('dark');
+    lightBtn.onclick = () => setTheme('light');
   </script>
   <script src="app.js"></script>
 </body>
