@@ -1,10 +1,10 @@
 # WiFi Call App (WebRTC, LAN + Internet)
 
-Ikki foydalanuvchi ovozli aloqa qilishi uchun WebRTC (P2P) va WebSocket signaling. Lokal WiFi/hotspotda ham, internet orqali TURN/STUN bilan ham ishlashi mumkin.
+Ikki foydalanuvchi ovozli aloqa qilishi uchun WebRTC (P2P) va WebSocket signaling. Lokal WiFi/hotspotda ham, internet orqali TURN/STUN bilan ham ishlaydi. Xona talab qilinmaydi — onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling.
 
 ## Fayl tuzilmasi
 - package.json
-- server/index.js — HTTP/HTTPS + WebSocket signaling (rooms, 2 peer limit)
+- server/index.js — HTTP/HTTPS + WebSocket signaling (online ro‘yxat, peer-to-peer)
 - client/ — statik UI
 - cert/ — dev uchun self-signed TLS (prod uchun kerak emas)
 - .env.example — sozlamalar namunasi
@@ -20,7 +20,7 @@ npm install
 npm run start:dev   # USE_HTTPS=true, default 4430
 # yoki npm start (USE_HTTPS default true)
 ```
-Brauzer: `https://<LAN-IP>:4430` → self-signed ogohlantirishini qabul qiling → xona nomi → Ulanish → Qongiroq.
+Brauzer: `https://<LAN-IP>:4430` → self-signed ogohlantirishini qabul qiling → “Onlayn bo‘lish” → ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling.
 
 ## Ishga tushirish (Docker, prod uslubi)
 ```bash
@@ -42,6 +42,6 @@ Brauzer: `http(s)://localhost:8080` (platforma TLS terminatsiya qilsa, https/wss
 
 ## Foydalanish
 1) Qurilmalar bir xil tarmoqda (yoki internet + TURN).
-2) Xona nomi kiriting, “Ulanish” bosing.
-3) Bir tomonda “Qong‘iroq” bosing, ikkinchisida offer kelganda avtomatik javob beradi.
-4) Mute/Uzish tugmalari mavjud; 3-foydalanuvchi kirsa, `room-full` xatosi.
+2) “Onlayn bo‘lish” tugmasini bosing.
+3) Onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling; qabul tomoni avtomatik javob beradi.
+4) Mute/Uzish tugmalari mavjud; onlayn ro‘yxat avtomatik yangilanadi.

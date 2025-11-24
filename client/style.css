@@ -82,7 +82,17 @@ button[disabled] { opacity: 0.5; cursor: not-allowed; }
 }
 .log-line { margin: 0 0 6px; }
 audio { width: 100%; margin-top: 10px; }
+.online-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.online-list button {
+  flex: 1 1 45%;
+  min-width: 140px;
+}
 @media (max-width: 480px) {
   button { width: 100%; }
   .btns { flex-direction: column; }
+  .online-list { flex-direction: column; }
 }

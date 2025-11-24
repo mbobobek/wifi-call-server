@@ -1,17 +1,18 @@
-﻿const roomInput = document.getElementById('room');
 const connectBtn = document.getElementById('connect');
-const callBtn = document.getElementById('call');
 const hangupBtn = document.getElementById('hangup');
 const muteBtn = document.getElementById('mute');
 const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
 const remoteAudio = document.getElementById('remote');
+const onlineEl = document.getElementById('online');
 
 let ws = null;
 let pc = null;
 let localStream = null;
-let roomId = null;
 let muted = false;
+let selfId = null;
+let currentPeerId = null;
+let displayName = window.DISPLAY_NAME || `User-${Math.random().toString(16).slice(2, 6)}`;
 
 const iceServers = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -31,17 +32,7 @@ const log = (text) => {
   logEl.scrollTop = logEl.scrollHeight;
 };
 
-connectBtn.onclick = () => {
-  const value = roomInput.value.trim();
-  if (!value) return log('Xona nomi kiriting');
-  connect(value);
-};
-
-callBtn.onclick = async () => {
-  if (!pc) return;
-  await ensureLocalAudio();
-  await makeOffer();
-};
+connectBtn.onclick = () => connect();
 
 hangupBtn.onclick = () => {
   log('Uzildi');
@@ -54,47 +45,50 @@ muteBtn.onclick = () => {
   muteBtn.textContent = muted ? 'Unmute' : 'Mute';
 };
 
-function connect(room) {
-  if (ws) ws.close();
-  roomId = room;
+function connect() {
+  if (ws && ws.readyState === WebSocket.OPEN) return log('Allaqachon ulangan');
+  if (ws && ws.readyState === WebSocket.CONNECTING) return log('Ulanmoqda...');
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const wsUrl = `${proto}://${location.host}/ws`;
   log(`Signalingga ulanmoqda: ${wsUrl}`);
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'join', room: roomId }));
-    setupPeer();
-    callBtn.disabled = false;
+    ws.send(JSON.stringify({ type: 'join', name: displayName }));
     hangupBtn.disabled = false;
     muteBtn.disabled = false;
-    log(`Xonaga ulandi: ${roomId}`);
+    log('Signaling ulandi');
   };
 
   ws.onmessage = async ({ data }) => {
     const msg = JSON.parse(data);
-    if (msg.type === 'offer') {
+    if (msg.type === 'welcome') {
+      selfId = msg.id;
+      if (msg.name) displayName = msg.name;
+      log(`Siz: ${displayName}`);
+    } else if (msg.type === 'online') {
+      renderOnline(msg.peers || []);
+    } else if (msg.type === 'offer') {
+      currentPeerId = msg.from;
+      ensurePeer();
       await ensureLocalAudio();
       await pc.setRemoteDescription(msg.offer);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      ws.send(JSON.stringify({ type: 'answer', answer }));
-      log('Offer oldim, answer yuborildi');
+      ws.send(JSON.stringify({ type: 'answer', target: msg.from, answer }));
+      log(`Offer oldim, ${msg.from} ga answer yuborildi`);
     } else if (msg.type === 'answer') {
       await pc.setRemoteDescription(msg.answer);
       log('Answer oldim');
     } else if (msg.type === 'candidate' && msg.candidate) {
       try {
+        ensurePeer();
         await pc.addIceCandidate(msg.candidate);
       } catch (err) {
         console.error('ICE add error', err);
       }
-    } else if (msg.type === 'peer-joined') {
-      log(`Hamkor qo'shildi, jami: ${msg.count}`);
-    } else if (msg.type === 'peer-left') {
-      log('Hamkor chiqdi');
-    } else if (msg.type === 'error' && msg.reason === 'room-full') {
-      log('Xona tola');
+    } else if (msg.type === 'error' && msg.reason) {
+      log(`Xato: ${msg.reason}`);
     }
   };
 
@@ -109,15 +103,43 @@ function connect(room) {
   };
 }
 
-function setupPeer() {
+function renderOnline(peers) {
+  onlineEl.innerHTML = '';
+  const others = peers.filter((p) => p.id !== selfId);
+  if (!others.length) {
+    onlineEl.textContent = 'Hozircha hech kim onlayn emas';
+    return;
+  }
+  others.forEach((peer) => {
+    const btn = document.createElement('button');
+    btn.textContent = peer.name || peer.id;
+    btn.onclick = () => startCall(peer.id);
+    onlineEl.appendChild(btn);
+  });
+}
+
+function ensurePeer() {
+  if (pc) return;
   pc = new RTCPeerConnection({ iceServers }); // STUN/TURN bilan internetda ham ishlashi uchun
   pc.onicecandidate = (e) => {
-    if (e.candidate) ws?.send(JSON.stringify({ type: 'candidate', candidate: e.candidate }));
+    if (e.candidate && currentPeerId) {
+      ws?.send(JSON.stringify({ type: 'candidate', target: currentPeerId, candidate: e.candidate }));
+    }
   };
   pc.onconnectionstatechange = () => log(`Peer: ${pc.connectionState}`);
   pc.ontrack = (e) => {
     remoteAudio.srcObject = e.streams[0];
   };
+}
+
+async function startCall(targetId) {
+  currentPeerId = targetId;
+  ensurePeer();
+  await ensureLocalAudio();
+  const offer = await pc.createOffer({ offerToReceiveAudio: true });
+  await pc.setLocalDescription(offer);
+  ws?.send(JSON.stringify({ type: 'offer', target: targetId, offer }));
+  log(`Offer yuborildi: ${targetId}`);
 }
 
 async function ensureLocalAudio() {
@@ -132,13 +154,6 @@ async function ensureLocalAudio() {
   }
 }
 
-async function makeOffer() {
-  const offer = await pc.createOffer({ offerToReceiveAudio: true });
-  await pc.setLocalDescription(offer);
-  ws?.send(JSON.stringify({ type: 'offer', offer }));
-  log('Offer yuborildi');
-}
-
 function cleanup(keepWs = false) {
   if (localStream) {
     localStream.getTracks().forEach((t) => t.stop());
@@ -149,11 +164,11 @@ function cleanup(keepWs = false) {
     pc.close();
     pc = null;
   }
+  currentPeerId = null;
   if (ws && !keepWs) {
     ws.close();
     ws = null;
   }
-  callBtn.disabled = true;
   hangupBtn.disabled = true;
   muteBtn.disabled = true;
 }

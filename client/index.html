@@ -10,19 +10,12 @@
   <main class="layout">
     <header>
       <h1>WiFi VoIP (LAN)</h1>
-      <p>Ikki foydalanuvchi bir WiFi ichida, internet kerak emas.</p>
+      <p>Onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling (xona kerak emas).</p>
     </header>
 
-    <section class="card">
-      <label for="room">Xona nomi</label>
-      <input id="room" type="text" value="xona1" autocomplete="off">
-      <button id="connect">Ulanish</button>
-      <p class="hint">Har ikkisi bir xil xona nomini kiritadi.</p>
-    </section>
-
     <section class="card controls">
+      <button id="connect">Onlayn bo'lish</button>
       <div class="btns">
-        <button id="call" disabled>Qongiroq</button>
         <button id="hangup" disabled>Uzish</button>
         <button id="mute" disabled>Mute</button>
       </div>
@@ -30,6 +23,11 @@
         <div class="status-dot"></div>
         <div id="status">Holat: tayyor emas</div>
       </div>
+    </section>
+
+    <section class="card">
+      <h3>Onlayn foydalanuvchilar</h3>
+      <div id="online" class="online-list">Ulanish tugmasini bosing</div>
     </section>
 
     <section class="card">

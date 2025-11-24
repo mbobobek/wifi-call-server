@@ -5,6 +5,7 @@ import https from 'https';
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,56 +39,65 @@ const server = USE_HTTPS
   : http.createServer(app); // Render TLS terminatsiya qiladi, shuning uchun prod HTTP yetarli
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-const rooms = new Map(); // roomId -> Set<WebSocket>
+const clients = new Map(); // id -> { ws, name }
 
 const safeParse = (raw) => {
   try { return JSON.parse(raw); } catch { return null; }
 };
 
-const broadcast = (roomId, sender, payload) => {
-  const peers = rooms.get(roomId);
-  if (!peers) return;
-  peers.forEach((client) => {
-    if (client !== sender && client.readyState === client.OPEN) {
-      client.send(payload);
-    }
+const broadcastOnline = () => {
+  const peers = [...clients.entries()].map(([id, info]) => ({
+    id,
+    name: info.name
+  }));
+  const payload = JSON.stringify({ type: 'online', peers });
+  clients.forEach(({ ws }) => {
+    if (ws.readyState === ws.OPEN) ws.send(payload);
   });
 };
 
 wss.on('connection', (ws) => {
-  let roomId = null;
+  const id = crypto.randomUUID();
+  let name = `User-${id.slice(0, 6)}`;
+  clients.set(id, { ws, name });
+  ws.send(JSON.stringify({ type: 'welcome', id, name }));
+  broadcastOnline();
 
   ws.on('message', (raw) => {
     const msg = safeParse(raw);
     if (!msg) return;
 
-    if (msg.type === 'join' && typeof msg.room === 'string') {
-      roomId = msg.room.trim();
-      if (!roomId) return;
-      if (!rooms.has(roomId)) rooms.set(roomId, new Set());
-      const peers = rooms.get(roomId);
-      peers.add(ws);
-      if (peers.size > 2) {
-        ws.send(JSON.stringify({ type: 'error', reason: 'room-full' }));
-      }
-      broadcast(roomId, ws, JSON.stringify({ type: 'peer-joined', count: peers.size }));
+    if (msg.type === 'join' && typeof msg.name === 'string') {
+      name = msg.name.trim() || name;
+      clients.set(id, { ws, name });
+      broadcastOnline();
       return;
     }
 
-    if (!roomId) return;
-
     if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'candidate') {
-      broadcast(roomId, ws, raw.toString());
+      const targetId = msg.target;
+      if (typeof targetId !== 'string') return;
+      const target = clients.get(targetId);
+      if (!target) {
+        ws.send(JSON.stringify({ type: 'error', reason: 'target-offline' }));
+        return;
+      }
+      const payload = {
+        type: msg.type,
+        from: id,
+        ...(msg.type === 'offer' ? { offer: msg.offer } : {}),
+        ...(msg.type === 'answer' ? { answer: msg.answer } : {}),
+        ...(msg.type === 'candidate' ? { candidate: msg.candidate } : {})
+      };
+      if (target.ws.readyState === target.ws.OPEN) {
+        target.ws.send(JSON.stringify(payload));
+      }
     }
   });
 
   ws.on('close', () => {
-    if (!roomId) return;
-    const peers = rooms.get(roomId);
-    if (!peers) return;
-    peers.delete(ws);
-    broadcast(roomId, ws, JSON.stringify({ type: 'peer-left' }));
-    if (peers.size === 0) rooms.delete(roomId);
+    clients.delete(id);
+    broadcastOnline();
   });
 });
 
