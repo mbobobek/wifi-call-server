@@ -314,7 +314,6 @@ function endCall() {
 function ensurePeer() {
   if (pc) return;
   pc = new RTCPeerConnection({ iceServers });
-  pc.addTransceiver('audio', { direction: 'sendrecv' });
   pc.onicecandidate = (e) => {
     if (e.candidate && currentPeer) {
       ws?.send(JSON.stringify({ type: 'candidate', target: currentPeer.id, candidate: e.candidate }));
@@ -322,6 +321,7 @@ function ensurePeer() {
   };
   pc.ontrack = (e) => {
     remoteAudio.srcObject = e.streams[0];
+    remoteAudio.play?.().catch(() => {});
   };
   pc.onconnectionstatechange = () => {
     log(`Peer: ${pc.connectionState}`);
@@ -358,14 +358,15 @@ async function ensureLocalAudio() {
 
 function attachLocalTracks() {
   if (!pc || !localStream) return;
-  // remove existing senders to avoid duplicates on reconnection
-  pc.getSenders().forEach((s) => {
-    try { pc.removeTrack(s); } catch {}
-  });
-  localStream.getTracks().forEach((t) => {
-    pc.addTrack(t, localStream);
-    t.enabled = !muted;
-  });
+  const haveAudio = pc.getSenders().some((s) => s.track && s.track.kind === 'audio');
+  if (!haveAudio) {
+    localStream.getTracks().forEach((t) => {
+      pc.addTrack(t, localStream);
+      t.enabled = !muted;
+    });
+  } else {
+    localStream.getTracks().forEach((t) => { t.enabled = !muted; });
+  }
 }
 
 function toggleMute() {
