@@ -9,16 +9,10 @@
 <body>
   <main class="layout">
     <header class="hero">
-      <div class="brand">
-        <div class="brand-mark">WCA</div>
-        <div>
-          <h1>WiFi-Call-App</h1>
-          <p>Onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling. Xona kerak emas.</p>
-        </div>
-      </div>
-      <div class="theme-toggle">
-        <button id="theme-dark" class="ghost active">Dark</button>
-        <button id="theme-light" class="ghost">Light</button>
+      <div>
+        <p class="eyebrow">WiFi-Call-App</p>
+        <h1>Tezkor LAN/Internet audio qo‘ng‘iroqlar</h1>
+        <p class="lede">Onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling. Xona kerak emas.</p>
       </div>
     </header>
 
@@ -29,7 +23,8 @@
     </section>
 
     <section class="card controls">
-      <div class="control-row">
+      <div class="status-row">
+        <div class="status-dot"></div>
         <div class="status-chip">Holat: <span id="status">tayyor emas</span></div>
         <div class="ringing" id="ring"></div>
       </div>
@@ -58,18 +53,6 @@
     window.TURN_URL = '';
     window.TURN_USER = '';
     window.TURN_PASS = '';
-    // Light/Dark UI toggle (faqat ko'rinish uchun)
-    const body = document.body;
-    const darkBtn = document.getElementById('theme-dark');
-    const lightBtn = document.getElementById('theme-light');
-    const setTheme = (mode) => {
-      body.classList.toggle('theme-light', mode === 'light');
-      body.classList.toggle('theme-dark', mode === 'dark');
-      darkBtn.classList.toggle('active', mode === 'dark');
-      lightBtn.classList.toggle('active', mode === 'light');
-    };
-    darkBtn.onclick = () => setTheme('dark');
-    lightBtn.onclick = () => setTheme('light');
   </script>
   <script src="app.js"></script>
 </body>
