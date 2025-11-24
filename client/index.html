@@ -7,61 +7,82 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="bg-glow"></div>
   <main class="layout">
     <header class="hero">
-      <div>
-        <p class="eyebrow">WiFi-Call-App</p>
-        <h1>Tezkor LAN/Internet audio qo‘ng‘iroqlar</h1>
-        <p class="lede">Onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling. Xona kerak emas.</p>
+      <div class="logo-stack">
+        <img src="/mnt/data/Emerald_Gold_WCA_Monogram.png" alt="WCA" class="logo">
+        <div>
+          <p class="eyebrow">WiFi-Call-App</p>
+          <h1>Tezkor LAN/Internet audio qo‘ng‘iroqlar</h1>
+        </div>
       </div>
     </header>
 
-    <section class="card" id="screen-home">
-      <label for="name">Ismingiz/Nickname</label>
-      <input id="name" type="text" placeholder="Masalan: Ali" autocomplete="off">
-      <p class="hint">Saqlanadi (localStorage), onlaynga chiqqanda serverga yuboriladi.</p>
+    <!-- Home Screen -->
+    <section class="screen" id="screen-home">
+      <div class="card glass">
+        <label for="name">Ismingiz/Nickname</label>
+        <input id="name" type="text" placeholder="Masalan: Ali" autocomplete="off">
+        <p class="hint">Saqlanadi (localStorage), onlaynga chiqqanda serverga yuboriladi.</p>
+      </div>
 
-      <div class="status-row">
-        <div class="status-dot"></div>
+      <div class="card glass compact">
         <div class="status-chip">Holat: <span id="status">tayyor emas</span></div>
         <div class="ringing" id="ring"></div>
+        <button id="connect" class="primary full">Onlayn bo'lish</button>
       </div>
-      <button id="connect" class="primary">Onlayn bo'lish</button>
 
-      <h3>Onlayn foydalanuvchilar</h3>
-      <div id="online" class="online-list">Ulanish tugmasini bosing</div>
-    </section>
-
-    <section class="card hidden" id="screen-outgoing">
-      <h3>Chaqirilmoqda...</h3>
-      <p>Qo‘ng‘iroq: <strong id="outgoing-name"></strong></p>
-      <div class="ringing">Javob kutilmoqda</div>
-      <button id="outgoing-cancel" class="danger">Bekor qilish</button>
-    </section>
-
-    <section class="card hidden" id="screen-incoming">
-      <h3>Kirish qo‘ng‘irog‘i</h3>
-      <p><strong id="incoming-name"></strong> qo‘ng‘iroq qilmoqda</p>
-      <div class="btns">
-        <button id="incoming-accept" class="primary">Qabul qilish</button>
-        <button id="incoming-decline" class="danger">Rad etish</button>
+      <div class="card glass">
+        <div class="section-title">Onlayn foydalanuvchilar</div>
+        <div id="online" class="online-list">Ulanish tugmasini bosing</div>
       </div>
     </section>
 
-    <section class="card hidden" id="screen-incall">
-      <h3>Suhbat</h3>
-      <p class="lede">Hamkor: <strong id="incall-name"></strong></p>
-      <div class="status-row">
-        <div class="status-chip">Vaqt: <span id="call-timer">00:00</span></div>
+    <!-- Outgoing Call Screen -->
+    <section class="screen hidden" id="screen-outgoing">
+      <div class="card glass center">
+        <div class="logo-wave"></div>
+        <div class="call-title">Chaqirilmoqda...</div>
+        <div class="call-name" id="outgoing-name"></div>
+        <div class="ringing">Javob kutilmoqda</div>
       </div>
-      <div class="btns">
-        <button id="mute" class="secondary" disabled>Mute</button>
-        <button id="hangup" class="danger" disabled>Uzish</button>
+      <button id="outgoing-cancel" class="danger full pill">Bekor qilish</button>
+    </section>
+
+    <!-- Incoming Call Screen -->
+    <section class="screen hidden" id="screen-incoming">
+      <div class="card glass center">
+        <div class="waveform">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="call-title">Kirish qo‘ng‘irog‘i</div>
+        <div class="call-name" id="incoming-name"></div>
+      </div>
+      <div class="floating-actions">
+        <button id="incoming-decline" class="round danger">✕</button>
+        <button id="incoming-accept" class="round primary">✓</button>
       </div>
     </section>
 
-    <section class="card">
-      <h3>Log</h3>
+    <!-- In-Call Screen -->
+    <section class="screen hidden" id="screen-incall">
+      <div class="card glass center">
+        <div class="waveform solid">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="call-title" id="incall-name"></div>
+        <div class="status-chip timer">Vaqt: <span id="call-timer">00:00</span></div>
+      </div>
+      <div class="btns spaced">
+        <button id="mute" class="secondary pill" disabled>Mute</button>
+        <button id="hangup" class="danger pill" disabled>Uzish</button>
+        <button id="back" class="ghost pill">Orqaga</button>
+      </div>
+    </section>
+
+    <section class="card glass logs">
+      <div class="section-title">Log</div>
       <div id="log"></div>
       <div class="debug">
         <div>Call state: <span id="debug-state">idle</span></div>

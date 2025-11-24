@@ -3,6 +3,7 @@ const nameInput = document.getElementById('name');
 const connectBtn = document.getElementById('connect');
 const muteBtn = document.getElementById('mute');
 const hangupBtn = document.getElementById('hangup');
+const backBtn = document.getElementById('back');
 const onlineEl = document.getElementById('online');
 const logEl = document.getElementById('log');
 const statusEl = document.getElementById('status');
@@ -126,6 +127,7 @@ outgoingCancelBtn.onclick = () => hangup('cancelled');
 incomingAcceptBtn.onclick = () => acceptIncoming();
 incomingDeclineBtn.onclick = () => rejectIncoming();
 hangupBtn.onclick = () => hangup('hangup');
+if (backBtn) backBtn.onclick = () => hangup('back');
 muteBtn.onclick = () => toggleMute();
 
 nameInput.onchange = () => {
