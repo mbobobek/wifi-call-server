@@ -53,15 +53,6 @@ let callStart = null;
 let displayName = window.DISPLAY_NAME || localStorage.getItem('displayName') || `User-${Math.random().toString(16).slice(2, 6)}`;
 nameInput.value = displayName;
 
-const iceServers = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  ...(window.TURN_URL ? [{
-    urls: window.TURN_URL,
-    username: window.TURN_USER,
-    credential: window.TURN_PASS,
-  }] : [])
-];
-
 // Helpers
 const log = (text) => {
   statusEl.textContent = `Holat: ${text}`;
@@ -313,7 +304,20 @@ function endCall() {
 // WebRTC helpers
 function ensurePeer() {
   if (pc) return;
-  pc = new RTCPeerConnection({ iceServers });
+  pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls: [
+          'turn:openrelay.metered.ca:80?transport=udp',
+          'turn:openrelay.metered.ca:80?transport=tcp',
+          'turn:openrelay.metered.ca:443?transport=tcp'
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
+    ]
+  });
   pc.onicecandidate = (e) => {
     if (e.candidate && currentPeer) {
       ws?.send(JSON.stringify({ type: 'candidate', target: currentPeer.id, candidate: e.candidate }));
@@ -322,6 +326,11 @@ function ensurePeer() {
   pc.ontrack = (e) => {
     remoteAudio.srcObject = e.streams[0];
     remoteAudio.play?.().catch(() => {});
+    if (callState === CallState.CONNECTING) {
+      setState(CallState.IN_CALL, 'Audio qabul qilindi');
+      setRinging('');
+      startTimer();
+    }
   };
   pc.onconnectionstatechange = () => {
     log(`Peer: ${pc.connectionState}`);
@@ -335,7 +344,10 @@ function ensurePeer() {
       endCall();
     }
   };
-  pc.oniceconnectionstatechange = () => updateDebug();
+  pc.oniceconnectionstatechange = () => {
+    log(`ICE: ${pc.iceConnectionState}`);
+    updateDebug();
+  };
   pc.onsignalingstatechange = () => updateDebug();
 }
 
@@ -358,15 +370,13 @@ async function ensureLocalAudio() {
 
 function attachLocalTracks() {
   if (!pc || !localStream) return;
+  const audioTrack = localStream.getAudioTracks()[0];
+  if (!audioTrack) return;
   const haveAudio = pc.getSenders().some((s) => s.track && s.track.kind === 'audio');
   if (!haveAudio) {
-    localStream.getTracks().forEach((t) => {
-      pc.addTrack(t, localStream);
-      t.enabled = !muted;
-    });
-  } else {
-    localStream.getTracks().forEach((t) => { t.enabled = !muted; });
+    pc.addTrack(audioTrack, localStream);
   }
+  audioTrack.enabled = !muted;
 }
 
 function toggleMute() {
