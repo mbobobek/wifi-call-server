@@ -273,9 +273,9 @@ async function handleOffer(msg) {
   setState(CallState.CONNECTING, 'Offer qabul qilindi');
   await ensureLocalAudio();
   ensurePeer();
-  attachLocalTracks();
   await pc.setRemoteDescription(msg.offer);
-  const answer = await pc.createAnswer();
+  attachLocalTracks();
+  const answer = await pc.createAnswer({ offerToReceiveAudio: true });
   await pc.setLocalDescription(answer);
   ws?.send(JSON.stringify({ type: 'answer', target: msg.from, answer }));
   setRinging('Ulanmoqda...');
@@ -314,6 +314,7 @@ function endCall() {
 function ensurePeer() {
   if (pc) return;
   pc = new RTCPeerConnection({ iceServers });
+  pc.addTransceiver('audio', { direction: 'sendrecv' });
   pc.onicecandidate = (e) => {
     if (e.candidate && currentPeer) {
       ws?.send(JSON.stringify({ type: 'candidate', target: currentPeer.id, candidate: e.candidate }));
