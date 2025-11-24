@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  app:
+    build: .
+    environment:
+      USE_HTTPS: "false"
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      # TURN_URL: "turn:turn.example.com:3478"
+      # TURN_USER: "user"
+      # TURN_PASS: "pass"
+    ports:
+      - "8080:8080"

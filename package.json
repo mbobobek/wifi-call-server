@@ -1,0 +1,18 @@
+﻿{
+  "name": "wifi-call-app",
+  "version": "1.0.0",
+  "description": "WiFi local WebRTC audio call (offline)",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "start:dev": "cross-env USE_HTTPS=true PORT=4430 node server/index.js",
+    "start:prod": "cross-env USE_HTTPS=false node server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.17.1"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}

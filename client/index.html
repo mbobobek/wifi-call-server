@@ -1,0 +1,50 @@
+﻿<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WiFi VoIP (LAN)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="layout">
+    <header>
+      <h1>WiFi VoIP (LAN)</h1>
+      <p>Ikki foydalanuvchi bir WiFi ichida, internet kerak emas.</p>
+    </header>
+
+    <section class="card">
+      <label for="room">Xona nomi</label>
+      <input id="room" type="text" value="xona1" autocomplete="off">
+      <button id="connect">Ulanish</button>
+      <p class="hint">Har ikkisi bir xil xona nomini kiritadi.</p>
+    </section>
+
+    <section class="card controls">
+      <div class="btns">
+        <button id="call" disabled>Qongiroq</button>
+        <button id="hangup" disabled>Uzish</button>
+        <button id="mute" disabled>Mute</button>
+      </div>
+      <div class="status-row">
+        <div class="status-dot"></div>
+        <div id="status">Holat: tayyor emas</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Log</h3>
+      <div id="log"></div>
+    </section>
+
+    <audio id="remote" autoplay></audio>
+  </main>
+  <script>
+    // TURN sozlamalarini kerak bo'lsa to'ldiring (internet orqali ishlatish uchun)
+    window.TURN_URL = '';
+    window.TURN_USER = '';
+    window.TURN_PASS = '';
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
