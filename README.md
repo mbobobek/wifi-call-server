@@ -40,6 +40,18 @@ Brauzer: `http(s)://localhost:8080` (platforma TLS terminatsiya qilsa, https/wss
 - STUN: `stun:stun.l.google.com:19302` default bor.
 - TURN kerak bo‘lsa (NAT orti): o‘zingizning coturn serveringizni 3478/5349 portlarda oching va credentiallarni `.env` + `client/index.html` ga (window.TURN_*) kiriting.
 
+### O'z TURN (coturn) serverini ishga tushirish (Docker)
+1) `turn/turnserver.conf.example` ni nusxa oling:
+```
+cp turn/turnserver.conf.example turn/turnserver.conf
+```
+`realm`, `user`, va parolni yangilang. TLS sertlaringiz bo'lsa, `cert`/`pkey` yo'llarini oching.
+2) Docker compose bilan ishga tushiring:
+```
+docker compose -f docker-compose.turn.yml up -d
+```
+3) Klientga credentiallarni qo'shing (hozir kodda OpenRelay ishlatilmoqda; o'zingiznikiga o'zgartirmoqchi bo'lsangiz, `client/app.js` dagi iceServers blokini moslang).
+
 ## Foydalanish
 1) Qurilmalar bir xil tarmoqda (yoki internet + TURN).
 2) “Onlayn bo‘lish” tugmasini bosing.

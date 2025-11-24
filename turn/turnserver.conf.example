@@ -1,0 +1,11 @@
+listening-port=3478
+tls-listening-port=5349
+fingerprint
+realm=yourdomain.com
+lt-cred-mech
+user=wcauser:strongpassword
+no-loopback-peers
+no-multicast-peers
+# TLS (ixtiyoriy, tavsiya etiladi prod uchun)
+# cert=/etc/coturn/tls/fullchain.pem
+# pkey=/etc/coturn/tls/privkey.pem

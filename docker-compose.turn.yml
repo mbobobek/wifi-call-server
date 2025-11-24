@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  coturn:
+    image: instrumentisto/coturn
+    container_name: wca-turn
+    restart: unless-stopped
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "5349:5349/tcp"
+      - "5349:5349/udp"
+    volumes:
+      - ./turn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+      # TLS fayllari bo'lsa, shu yerda ulaysiz:
+      # - ./cert/fullchain.pem:/etc/coturn/tls/fullchain.pem:ro
+      # - ./cert/privkey.pem:/etc/coturn/tls/privkey.pem:ro
