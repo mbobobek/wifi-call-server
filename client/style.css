@@ -91,6 +91,11 @@ audio { width: 100%; margin-top: 10px; }
   flex: 1 1 45%;
   min-width: 140px;
 }
+.ringing {
+  margin-top: 8px;
+  color: var(--accent);
+  font-weight: 600;
+}
 @media (max-width: 480px) {
   button { width: 100%; }
   .btns { flex-direction: column; }

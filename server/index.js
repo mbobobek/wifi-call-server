@@ -74,6 +74,13 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    if (msg.type === 'set-name' && typeof msg.name === 'string') {
+      name = msg.name.trim() || name;
+      clients.set(id, { ws, name });
+      broadcastOnline();
+      return;
+    }
+
     if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'candidate') {
       const targetId = msg.target;
       if (typeof targetId !== 'string') return;
@@ -92,6 +99,17 @@ wss.on('connection', (ws) => {
       if (target.ws.readyState === target.ws.OPEN) {
         target.ws.send(JSON.stringify(payload));
       }
+      return;
+    }
+
+    if (msg.type === 'bye') {
+      const targetId = msg.target;
+      const target = typeof targetId === 'string' ? clients.get(targetId) : null;
+      const payload = JSON.stringify({ type: 'bye', from: id });
+      if (target && target.ws.readyState === target.ws.OPEN) {
+        target.ws.send(payload);
+      }
+      ws.send(payload); // echo back for local cleanup
     }
   });
 

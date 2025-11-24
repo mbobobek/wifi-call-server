@@ -13,6 +13,12 @@
       <p>Onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling (xona kerak emas).</p>
     </header>
 
+    <section class="card">
+      <label for="name">Ismingiz/Nickname</label>
+      <input id="name" type="text" placeholder="Masalan: Ali" autocomplete="off">
+      <p class="hint">Saqlanadi (localStorage), onlaynga chiqqanda serverga yuboriladi.</p>
+    </section>
+
     <section class="card controls">
       <button id="connect">Onlayn bo'lish</button>
       <div class="btns">
@@ -28,6 +34,7 @@
     <section class="card">
       <h3>Onlayn foydalanuvchilar</h3>
       <div id="online" class="online-list">Ulanish tugmasini bosing</div>
+      <div id="ring" class="ringing"></div>
     </section>
 
     <section class="card">
