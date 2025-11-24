@@ -16,34 +16,59 @@
       </div>
     </header>
 
-    <section class="card">
+    <section class="card" id="screen-home">
       <label for="name">Ismingiz/Nickname</label>
       <input id="name" type="text" placeholder="Masalan: Ali" autocomplete="off">
       <p class="hint">Saqlanadi (localStorage), onlaynga chiqqanda serverga yuboriladi.</p>
-    </section>
 
-    <section class="card controls">
       <div class="status-row">
         <div class="status-dot"></div>
         <div class="status-chip">Holat: <span id="status">tayyor emas</span></div>
         <div class="ringing" id="ring"></div>
       </div>
       <button id="connect" class="primary">Onlayn bo'lish</button>
+
+      <h3>Onlayn foydalanuvchilar</h3>
+      <div id="online" class="online-list">Ulanish tugmasini bosing</div>
+    </section>
+
+    <section class="card hidden" id="screen-outgoing">
+      <h3>Chaqirilmoqda...</h3>
+      <p>Qo‘ng‘iroq: <strong id="outgoing-name"></strong></p>
+      <div class="ringing">Javob kutilmoqda</div>
+      <button id="outgoing-cancel" class="danger">Bekor qilish</button>
+    </section>
+
+    <section class="card hidden" id="screen-incoming">
+      <h3>Kirish qo‘ng‘irog‘i</h3>
+      <p><strong id="incoming-name"></strong> qo‘ng‘iroq qilmoqda</p>
       <div class="btns">
-        <button id="hangup" class="danger" disabled>Uzish</button>
-        <button id="mute" class="secondary" disabled>Mute</button>
+        <button id="incoming-accept" class="primary">Qabul qilish</button>
+        <button id="incoming-decline" class="danger">Rad etish</button>
       </div>
     </section>
 
-    <section class="card">
-      <h3>Onlayn foydalanuvchilar</h3>
-      <div id="online" class="online-list">Ulanish tugmasini bosing</div>
-      <div id="ring" class="ringing"></div>
+    <section class="card hidden" id="screen-incall">
+      <h3>Suhbat</h3>
+      <p class="lede">Hamkor: <strong id="incall-name"></strong></p>
+      <div class="status-row">
+        <div class="status-chip">Vaqt: <span id="call-timer">00:00</span></div>
+      </div>
+      <div class="btns">
+        <button id="mute" class="secondary" disabled>Mute</button>
+        <button id="hangup" class="danger" disabled>Uzish</button>
+      </div>
     </section>
 
     <section class="card">
       <h3>Log</h3>
       <div id="log"></div>
+      <div class="debug">
+        <div>Call state: <span id="debug-state">idle</span></div>
+        <div>PC: <span id="debug-pc">none</span></div>
+        <div>ICE: <span id="debug-ice">none</span></div>
+        <div>Signal: <span id="debug-signal">none</span></div>
+      </div>
     </section>
 
     <audio id="remote" autoplay></audio>

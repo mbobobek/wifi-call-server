@@ -63,10 +63,18 @@ wss.on('connection', (ws) => {
   ws.send(JSON.stringify({ type: 'welcome', id, name }));
   broadcastOnline();
 
+  const sendTo = (targetId, payload) => {
+    const target = clients.get(targetId);
+    if (!target || target.ws.readyState !== target.ws.OPEN) return false;
+    target.ws.send(JSON.stringify(payload));
+    return true;
+  };
+
   ws.on('message', (raw) => {
     const msg = safeParse(raw);
     if (!msg) return;
 
+    // Registration / naming
     if (msg.type === 'join' && typeof msg.name === 'string') {
       name = msg.name.trim() || name;
       clients.set(id, { ws, name });
@@ -81,35 +89,35 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // Call signaling (no rooms, direct)
+    if (msg.type === 'call' || msg.type === 'call-accept' || msg.type === 'call-reject' || msg.type === 'busy') {
+      const targetId = msg.target;
+      if (typeof targetId !== 'string') return;
+      const ok = sendTo(targetId, { type: msg.type, from: id, name, note: msg.note });
+      if (!ok) ws.send(JSON.stringify({ type: 'error', reason: 'target-offline' }));
+      return;
+    }
+
     if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'candidate') {
       const targetId = msg.target;
       if (typeof targetId !== 'string') return;
-      const target = clients.get(targetId);
-      if (!target) {
-        ws.send(JSON.stringify({ type: 'error', reason: 'target-offline' }));
-        return;
-      }
-      const payload = {
+      const ok = sendTo(targetId, {
         type: msg.type,
         from: id,
         ...(msg.type === 'offer' ? { offer: msg.offer } : {}),
         ...(msg.type === 'answer' ? { answer: msg.answer } : {}),
         ...(msg.type === 'candidate' ? { candidate: msg.candidate } : {})
-      };
-      if (target.ws.readyState === target.ws.OPEN) {
-        target.ws.send(JSON.stringify(payload));
-      }
+      });
+      if (!ok) ws.send(JSON.stringify({ type: 'error', reason: 'target-offline' }));
       return;
     }
 
     if (msg.type === 'bye') {
       const targetId = msg.target;
-      const target = typeof targetId === 'string' ? clients.get(targetId) : null;
-      const payload = JSON.stringify({ type: 'bye', from: id });
-      if (target && target.ws.readyState === target.ws.OPEN) {
-        target.ws.send(payload);
-      }
-      ws.send(payload); // echo back for local cleanup
+      const payload = { type: 'bye', from: id };
+      if (typeof targetId === 'string') sendTo(targetId, payload);
+      ws.send(JSON.stringify(payload)); // echo back for local cleanup
+      return;
     }
   });
 

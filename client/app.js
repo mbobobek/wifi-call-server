@@ -1,21 +1,56 @@
+// DOM
 const nameInput = document.getElementById('name');
 const connectBtn = document.getElementById('connect');
-const hangupBtn = document.getElementById('hangup');
 const muteBtn = document.getElementById('mute');
-const statusEl = document.getElementById('status');
-const logEl = document.getElementById('log');
-const remoteAudio = document.getElementById('remote');
+const hangupBtn = document.getElementById('hangup');
 const onlineEl = document.getElementById('online');
+const logEl = document.getElementById('log');
+const statusEl = document.getElementById('status');
 const ringEl = document.getElementById('ring');
+const remoteAudio = document.getElementById('remote');
+const outgoingNameEl = document.getElementById('outgoing-name');
+const incomingNameEl = document.getElementById('incoming-name');
+const incallNameEl = document.getElementById('incall-name');
+const timerEl = document.getElementById('call-timer');
+const debugState = document.getElementById('debug-state');
+const debugPC = document.getElementById('debug-pc');
+const debugICE = document.getElementById('debug-ice');
+const debugSignal = document.getElementById('debug-signal');
+
+// Screens
+const screens = {
+  home: document.getElementById('screen-home'),
+  outgoing: document.getElementById('screen-outgoing'),
+  incoming: document.getElementById('screen-incoming'),
+  incall: document.getElementById('screen-incall')
+};
+
+// Buttons on screens
+const outgoingCancelBtn = document.getElementById('outgoing-cancel');
+const incomingAcceptBtn = document.getElementById('incoming-accept');
+const incomingDeclineBtn = document.getElementById('incoming-decline');
+
+// State
+const CallState = {
+  IDLE: 'idle',
+  CALLING_OUT: 'calling_out',
+  RINGING_IN: 'ringing_in',
+  CONNECTING: 'connecting',
+  IN_CALL: 'in_call',
+  ENDED: 'ended'
+};
 
 let ws = null;
 let pc = null;
 let localStream = null;
 let muted = false;
+let callState = CallState.IDLE;
 let selfId = null;
-let currentPeerId = null;
-let displayName = window.DISPLAY_NAME || localStorage.getItem('displayName') || `User-${Math.random().toString(16).slice(2, 6)}`;
+let currentPeer = null; // { id, name }
+let callTimer = null;
+let callStart = null;
 
+let displayName = window.DISPLAY_NAME || localStorage.getItem('displayName') || `User-${Math.random().toString(16).slice(2, 6)}`;
 nameInput.value = displayName;
 
 const iceServers = [
@@ -27,6 +62,7 @@ const iceServers = [
   }] : [])
 ];
 
+// Helpers
 const log = (text) => {
   statusEl.textContent = `Holat: ${text}`;
   const div = document.createElement('div');
@@ -36,19 +72,70 @@ const log = (text) => {
   logEl.scrollTop = logEl.scrollHeight;
 };
 
-connectBtn.onclick = () => connect();
-
-hangupBtn.onclick = () => {
-  sendBye();
-  log('Uzildi');
-  cleanup();
+const setScreen = (name) => {
+  Object.entries(screens).forEach(([key, el]) => {
+    if (!el) return;
+    el.classList.toggle('hidden', key !== name);
+  });
 };
 
-muteBtn.onclick = () => {
-  muted = !muted;
-  if (localStream) localStream.getAudioTracks().forEach((t) => { t.enabled = !muted; });
-  muteBtn.textContent = muted ? 'Unmute' : 'Mute';
+const setState = (state, note) => {
+  callState = state;
+  statusEl.textContent = `Holat: ${state}`;
+  if (note) log(note);
+  updateDebug();
+
+  if (state === CallState.IDLE || state === CallState.ENDED) {
+    setScreen('home');
+    ringEl.textContent = '';
+    stopTimer();
+    hangupBtn.disabled = true;
+    muteBtn.disabled = true;
+  } else if (state === CallState.CALLING_OUT) {
+    setScreen('outgoing');
+    hangupBtn.disabled = true;
+    muteBtn.disabled = true;
+  } else if (state === CallState.RINGING_IN) {
+    setScreen('incoming');
+    hangupBtn.disabled = true;
+    muteBtn.disabled = true;
+  } else if (state === CallState.CONNECTING || state === CallState.IN_CALL) {
+    setScreen('incall');
+    hangupBtn.disabled = false;
+    muteBtn.disabled = state === CallState.CONNECTING; // mute faqat ulanishdan keyin
+  }
 };
+
+const updateDebug = () => {
+  debugState.textContent = callState;
+  debugPC.textContent = pc ? pc.connectionState : 'none';
+  debugICE.textContent = pc ? pc.iceConnectionState : 'none';
+  debugSignal.textContent = pc ? pc.signalingState : 'none';
+};
+
+const startTimer = () => {
+  stopTimer();
+  callStart = Date.now();
+  callTimer = setInterval(() => {
+    const secs = Math.floor((Date.now() - callStart) / 1000);
+    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+    timerEl.textContent = `${mm}:${ss}`;
+  }, 1000);
+};
+const stopTimer = () => {
+  if (callTimer) clearInterval(callTimer);
+  callTimer = null;
+  timerEl.textContent = '00:00';
+};
+
+// Event bindings
+connectBtn.onclick = () => connectWS();
+outgoingCancelBtn.onclick = () => hangup('cancelled');
+incomingAcceptBtn.onclick = () => acceptIncoming();
+incomingDeclineBtn.onclick = () => rejectIncoming();
+hangupBtn.onclick = () => hangup('hangup');
+muteBtn.onclick = () => toggleMute();
 
 nameInput.onchange = () => {
   displayName = nameInput.value.trim() || displayName;
@@ -58,9 +145,9 @@ nameInput.onchange = () => {
   }
 };
 
-async function connect() {
+// WS
+function connectWS() {
   if (ws && ws.readyState === WebSocket.OPEN) return log('Allaqachon ulangan');
-  if (ws && ws.readyState === WebSocket.CONNECTING) return log('Ulanmoqda...');
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const wsUrl = `${proto}://${location.host}/ws`;
   log(`Signalingga ulanmoqda: ${wsUrl}`);
@@ -68,8 +155,6 @@ async function connect() {
 
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: 'join', name: displayName }));
-    hangupBtn.disabled = false;
-    muteBtn.disabled = false;
     log('Signaling ulandi');
   };
 
@@ -81,40 +166,32 @@ async function connect() {
       log(`Siz: ${displayName}`);
     } else if (msg.type === 'online') {
       renderOnline(msg.peers || []);
+    } else if (msg.type === 'call') {
+      handleIncomingCall(msg);
+    } else if (msg.type === 'busy' || msg.type === 'call-reject') {
+      log(msg.type === 'busy' ? 'Hamkor band' : 'Rad etildi');
+      endCall();
+    } else if (msg.type === 'call-accept') {
+      log('Qabul qilindi, offer yaratilmoqda');
+      await startOfferFlow();
     } else if (msg.type === 'offer') {
-      currentPeerId = msg.from;
-      ensurePeer();
-      await ensureLocalAudio();
-      await pc.setRemoteDescription(msg.offer);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      ws.send(JSON.stringify({ type: 'answer', target: msg.from, answer }));
-      log(`Offer oldim, ${msg.from} ga answer yuborildi`);
-      setRinging(false);
+      await handleOffer(msg);
     } else if (msg.type === 'answer') {
-      await pc.setRemoteDescription(msg.answer);
-      log('Answer oldim');
-      setRinging(false);
+      await handleAnswer(msg);
     } else if (msg.type === 'candidate' && msg.candidate) {
-      try {
-        ensurePeer();
-        await pc.addIceCandidate(msg.candidate);
-      } catch (err) {
-        console.error('ICE add error', err);
-      }
+      await handleCandidate(msg);
     } else if (msg.type === 'bye') {
       log('Hamkor uzildi');
-      cleanup(true);
-      setRinging(false);
+      endCall();
     } else if (msg.type === 'error' && msg.reason) {
       log(`Xato: ${msg.reason}`);
-      setRinging(false);
+      endCall();
     }
   };
 
   ws.onclose = () => {
     log('Signaling uzildi');
-    cleanup(true);
+    cleanupPeer(true);
   };
 
   ws.onerror = (err) => {
@@ -123,6 +200,7 @@ async function connect() {
   };
 }
 
+// Online list
 function renderOnline(peers) {
   onlineEl.innerHTML = '';
   const others = peers.filter((p) => p.id !== selfId);
@@ -133,43 +211,131 @@ function renderOnline(peers) {
   others.forEach((peer) => {
     const btn = document.createElement('button');
     btn.textContent = peer.name || peer.id;
-    btn.onclick = () => startCall(peer.id, peer.name);
+    btn.onclick = () => initiateCall(peer);
     onlineEl.appendChild(btn);
   });
 }
 
+// Call flows
+function initiateCall(peer) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return log('Avval online bo‘ling');
+  if (callState !== CallState.IDLE) return log('Hozircha band');
+  currentPeer = { id: peer.id, name: peer.name || peer.id };
+  updatePeerLabels();
+  setState(CallState.CALLING_OUT, `Qo‘ng‘iroq: ${currentPeer.name}`);
+  ws.send(JSON.stringify({ type: 'call', target: currentPeer.id }));
+  setRinging('Chaqirilmoqda...');
+}
+
+function handleIncomingCall(msg) {
+  if (callState !== CallState.IDLE) {
+    ws?.send(JSON.stringify({ type: 'busy', target: msg.from }));
+    return;
+  }
+  currentPeer = { id: msg.from, name: msg.name || msg.from };
+  updatePeerLabels();
+  setState(CallState.RINGING_IN, `${currentPeer.name} qo‘ng‘iroq qilmoqda`);
+  setRinging('Kirish qo‘ng‘irog‘i');
+}
+
+async function acceptIncoming() {
+  if (!currentPeer) return;
+  setState(CallState.CONNECTING, 'Qabul qilindi');
+  ws?.send(JSON.stringify({ type: 'call-accept', target: currentPeer.id }));
+  await ensureLocalAudio();
+  ensurePeer();
+  attachLocalTracks();
+  setRinging('Ulanmoqda...');
+}
+
+function rejectIncoming() {
+  if (!currentPeer) return;
+  ws?.send(JSON.stringify({ type: 'call-reject', target: currentPeer.id }));
+  endCall();
+}
+
+async function startOfferFlow() {
+  if (!currentPeer) return;
+  setState(CallState.CONNECTING, 'Offer yaratilmoqda');
+  await ensureLocalAudio();
+  ensurePeer();
+  attachLocalTracks();
+  const offer = await pc.createOffer({ offerToReceiveAudio: true });
+  await pc.setLocalDescription(offer);
+  ws?.send(JSON.stringify({ type: 'offer', target: currentPeer.id, offer }));
+  setRinging('Javob kutilmoqda...');
+}
+
+async function handleOffer(msg) {
+  const peerName = msg.name || currentPeer?.name || msg.from;
+  currentPeer = { id: msg.from, name: peerName };
+  updatePeerLabels();
+  setState(CallState.CONNECTING, 'Offer qabul qilindi');
+  await ensureLocalAudio();
+  ensurePeer();
+  attachLocalTracks();
+  await pc.setRemoteDescription(msg.offer);
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  ws?.send(JSON.stringify({ type: 'answer', target: msg.from, answer }));
+  setRinging('Ulanmoqda...');
+}
+
+async function handleAnswer(msg) {
+  await pc?.setRemoteDescription(msg.answer);
+  setRinging('Ulanmoqda...');
+}
+
+async function handleCandidate(msg) {
+  if (!pc) return;
+  try {
+    await pc.addIceCandidate(msg.candidate);
+  } catch (err) {
+    console.error('ICE add error', err);
+  }
+}
+
+function hangup(reason = 'uzildi') {
+  if (currentPeer && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'bye', target: currentPeer.id }));
+  }
+  log(reason);
+  endCall();
+}
+
+function endCall() {
+  setRinging('');
+  cleanupPeer();
+  currentPeer = null;
+  setState(CallState.IDLE, 'Bo‘sh');
+}
+
+// WebRTC helpers
 function ensurePeer() {
   if (pc) return;
-  pc = new RTCPeerConnection({ iceServers }); // STUN/TURN bilan internetda ham ishlashi uchun
+  pc = new RTCPeerConnection({ iceServers });
   pc.onicecandidate = (e) => {
-    if (e.candidate && currentPeerId) {
-      ws?.send(JSON.stringify({ type: 'candidate', target: currentPeerId, candidate: e.candidate }));
-    }
-  };
-  pc.onconnectionstatechange = () => {
-    log(`Peer: ${pc.connectionState}`);
-    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-      setRinging(false);
+    if (e.candidate && currentPeer) {
+      ws?.send(JSON.stringify({ type: 'candidate', target: currentPeer.id, candidate: e.candidate }));
     }
   };
   pc.ontrack = (e) => {
     remoteAudio.srcObject = e.streams[0];
   };
-}
-
-async function startCall(targetId, targetName) {
-  if (currentPeerId && currentPeerId !== targetId) {
-    log('Oldingi qo‘ng‘iroqni uzing yoki kuting');
-    return;
-  }
-  currentPeerId = targetId;
-  ensurePeer();
-  await ensureLocalAudio();
-  const offer = await pc.createOffer({ offerToReceiveAudio: true });
-  await pc.setLocalDescription(offer);
-  ws?.send(JSON.stringify({ type: 'offer', target: targetId, offer }));
-  log(`Offer yuborildi: ${targetName || targetId}`);
-  setRinging(true);
+  pc.onconnectionstatechange = () => {
+    log(`Peer: ${pc.connectionState}`);
+    updateDebug();
+    if (pc.connectionState === 'connected') {
+      setState(CallState.IN_CALL, 'Ulandi');
+      setRinging('');
+      startTimer();
+    }
+    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+      endCall();
+    }
+  };
+  pc.oniceconnectionstatechange = () => updateDebug();
+  pc.onsignalingstatechange = () => updateDebug();
 }
 
 async function ensureLocalAudio() {
@@ -182,7 +348,6 @@ async function ensureLocalAudio() {
         autoGainControl: true
       }
     });
-    localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
   } catch (err) {
     console.error(err);
     log('Mikrofon ruxsati berilmadi');
@@ -190,31 +355,53 @@ async function ensureLocalAudio() {
   }
 }
 
-function sendBye() {
-  if (ws && ws.readyState === WebSocket.OPEN && currentPeerId) {
-    ws.send(JSON.stringify({ type: 'bye', target: currentPeerId }));
-  }
+function attachLocalTracks() {
+  if (!pc || !localStream) return;
+  // remove existing senders to avoid duplicates on reconnection
+  pc.getSenders().forEach((s) => {
+    try { pc.removeTrack(s); } catch {}
+  });
+  localStream.getTracks().forEach((t) => {
+    pc.addTrack(t, localStream);
+    t.enabled = !muted;
+  });
 }
 
-function cleanup(keepWs = false) {
-  if (localStream) {
-    // Treklari to‘xtatmaymiz, qayta qo‘ng‘iroqda ruxsat so‘ralmasin
-    localStream.getTracks().forEach((t) => (t.enabled = !muted));
-  }
+function toggleMute() {
+  muted = !muted;
+  if (localStream) localStream.getAudioTracks().forEach((t) => { t.enabled = !muted; });
+  muteBtn.textContent = muted ? 'Unmute' : 'Mute';
+}
+
+function cleanupPeer(keepWs = true) {
+  stopTimer();
   if (pc) {
-    pc.getSenders().forEach((s) => pc.removeTrack(s));
+    pc.getSenders().forEach((s) => {
+      try { pc.removeTrack(s); } catch {}
+    });
     pc.close();
     pc = null;
   }
-  currentPeerId = null;
   if (ws && !keepWs) {
     ws.close();
     ws = null;
   }
-  hangupBtn.disabled = true;
-  muteBtn.disabled = true;
+  remoteAudio.srcObject = null;
+  currentPeer = null;
+  updateDebug();
 }
 
-function setRinging(on) {
-  ringEl.textContent = on ? 'Chaqirilmoqda / javob kutilmoqda...' : '';
+function setRinging(text) {
+  ringEl.textContent = text || '';
 }
+
+function updatePeerLabels() {
+  const name = currentPeer?.name || '';
+  outgoingNameEl.textContent = name;
+  incomingNameEl.textContent = name;
+  incallNameEl.textContent = name;
+}
+
+// Init UI
+setState(CallState.IDLE);
+updateDebug();
