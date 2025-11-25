@@ -150,7 +150,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; }
 
 .logo-wave {
   width: 96px; height: 96px; margin: 10px auto 12px;
-  background: url('logo-wca.png') center/contain no-repeat;
+  background: url('logo-wca.svg') center/contain no-repeat;
   filter: drop-shadow(0 10px 22px rgba(0,0,0,0.35));
   animation: pulse 1.6s ease-in-out infinite;
 }
