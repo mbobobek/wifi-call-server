@@ -1,4 +1,4 @@
-# WiFi Call App (WebRTC, LAN + Internet)
+# CallWave (WebRTC, LAN + Internet)
 
 Ikki foydalanuvchi ovozli aloqa qilishi uchun WebRTC (P2P) va WebSocket signaling. Lokal WiFi/hotspotda ham, internet orqali TURN/STUN bilan ham ishlaydi. Xona talab qilinmaydi — onlayn ro‘yxatdan foydalanuvchini tanlab qo‘ng‘iroq qiling.
 
@@ -24,8 +24,8 @@ Brauzer: `https://<LAN-IP>:4430` → self-signed ogohlantirishini qabul qiling �
 
 ## Ishga tushirish (Docker, prod uslubi)
 ```bash
-docker build -t wifi-call-app .
-docker run -p 8080:8080 -e USE_HTTPS=false wifi-call-app
+docker build -t callwave-app .
+docker run -p 8080:8080 -e USE_HTTPS=false callwave-app
 # yoki docker-compose up --build
 ```
 Brauzer: `http(s)://localhost:8080` (platforma TLS terminatsiya qilsa, https/wss bo‘ladi).

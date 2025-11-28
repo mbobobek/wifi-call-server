@@ -66,6 +66,8 @@ let chatPeer = null; // { id, name }
 const chatHistory = new Map(); // id -> messages
 let onlinePeers = new Map();
 let currentRoute = 'home';
+let audioCtx = null;
+let ringInterval = null;
 
 let displayName = window.DISPLAY_NAME || localStorage.getItem('displayName') || `User-${Math.random().toString(16).slice(2, 6)}`;
 nameInput.value = displayName;
@@ -156,6 +158,41 @@ const stopTimer = () => {
 const formatClock = (ts) => {
   const d = new Date(ts || Date.now());
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+const ensureAudioCtx = () => {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  } catch (err) {
+    console.warn('AudioContext error', err);
+    return null;
+  }
+};
+
+const stopRingTone = () => {
+  if (ringInterval) clearInterval(ringInterval);
+  ringInterval = null;
+};
+
+const startRingTone = () => {
+  stopRingTone();
+  const ctx = ensureAudioCtx();
+  if (!ctx) return;
+  ringInterval = setInterval(() => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = 880;
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.5);
+  }, 900);
 };
 
 const getPeerName = (id, fallback = '') => {
@@ -585,6 +622,11 @@ function cleanupPeer(keepWs = true) {
 
 function setRinging(text) {
   ringEl.textContent = text || '';
+  if (text) {
+    startRingTone();
+  } else {
+    stopRingTone();
+  }
 }
 
 function updatePeerLabels() {
