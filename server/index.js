@@ -112,6 +112,19 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // Text messaging (simple relay)
+    if (msg.type === 'message') {
+      const targetId = msg.target;
+      const text = typeof msg.text === 'string' ? msg.text.slice(0, 2000) : '';
+      if (!text || typeof targetId !== 'string') return;
+      const payload = { type: 'message', from: id, target: targetId, name, text, ts: Date.now() };
+      const delivered = sendTo(targetId, payload);
+      // Echo to sender for consistent UI, even if target is offline
+      ws.send(JSON.stringify({ ...payload, delivered }));
+      if (!delivered) ws.send(JSON.stringify({ type: 'error', reason: 'target-offline' }));
+      return;
+    }
+
     if (msg.type === 'bye') {
       const targetId = msg.target;
       const payload = { type: 'bye', from: id };

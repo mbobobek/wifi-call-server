@@ -17,6 +17,11 @@ const debugState = document.getElementById('debug-state');
 const debugPC = document.getElementById('debug-pc');
 const debugICE = document.getElementById('debug-ice');
 const debugSignal = document.getElementById('debug-signal');
+const chatPeerLabel = document.getElementById('chat-peer-label');
+const chatMessagesEl = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const chatSend = document.getElementById('chat-send');
+const chatClose = document.getElementById('chat-close');
 
 // Screens
 const screens = {
@@ -50,6 +55,9 @@ let selfId = null;
 let currentPeer = null; // { id, name }
 let callTimer = null;
 let callStart = null;
+let chatPeer = null; // { id, name }
+const chatHistory = new Map(); // id -> messages
+let onlinePeers = new Map();
 
 let displayName = window.DISPLAY_NAME || localStorage.getItem('displayName') || `User-${Math.random().toString(16).slice(2, 6)}`;
 nameInput.value = displayName;
@@ -121,6 +129,93 @@ const stopTimer = () => {
   timerEl.textContent = '00:00';
 };
 
+const formatClock = (ts) => {
+  const d = new Date(ts || Date.now());
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+const getPeerName = (id, fallback = '') => {
+  if (!id) return fallback;
+  if (id === selfId) return displayName;
+  if (onlinePeers.has(id)) return onlinePeers.get(id).name || id;
+  if (chatPeer?.id === id) return chatPeer.name || id;
+  if (currentPeer?.id === id) return currentPeer.name || id;
+  return fallback || id;
+};
+
+function setChatPeer(peer) {
+  chatPeer = peer;
+  if (peer) {
+    const isOnline = onlinePeers.has(peer.id);
+    const label = peer.name || peer.id;
+    chatPeerLabel.textContent = `Chat: ${label}${isOnline ? '' : ' (offline)'}`;
+    chatMessagesEl.classList.remove('muted');
+    chatInput.disabled = !(ws && ws.readyState === WebSocket.OPEN);
+    chatSend.disabled = chatInput.disabled;
+  } else {
+    chatPeerLabel.textContent = 'Foydalanuvchi tanlang';
+    chatMessagesEl.textContent = 'Hali tanlanmagan';
+    chatMessagesEl.classList.add('muted');
+    chatInput.disabled = true;
+    chatSend.disabled = true;
+  }
+  renderChatMessages(peer?.id);
+}
+
+function renderChatMessages(peerId) {
+  chatMessagesEl.innerHTML = '';
+  if (!peerId) {
+    chatMessagesEl.textContent = 'Hali tanlanmagan';
+    chatMessagesEl.classList.add('muted');
+    return;
+  }
+  const msgs = chatHistory.get(peerId) || [];
+  if (!msgs.length) {
+    chatMessagesEl.textContent = 'Hozircha xabar yo\'q';
+    chatMessagesEl.classList.add('muted');
+    return;
+  }
+  chatMessagesEl.classList.remove('muted');
+  msgs.forEach((m) => {
+    const wrap = document.createElement('div');
+    wrap.className = `chat-bubble ${m.fromSelf ? 'self' : 'remote'}`;
+    const meta = document.createElement('div');
+    meta.className = 'chat-meta';
+    meta.textContent = `${m.fromSelf ? 'Siz' : getPeerName(peerId, 'Hamkor')} \u2022 ${formatClock(m.ts)}`;
+    const body = document.createElement('div');
+    body.textContent = m.text;
+    wrap.appendChild(meta);
+    wrap.appendChild(body);
+    chatMessagesEl.appendChild(wrap);
+  });
+  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+}
+
+function addChatMessage(peerId, payload) {
+  const msgs = chatHistory.get(peerId) || [];
+  msgs.push(payload);
+  chatHistory.set(peerId, msgs);
+  if (chatPeer && chatPeer.id === peerId) renderChatMessages(peerId);
+}
+
+function openChat(peer) {
+  setChatPeer(peer);
+  chatInput.focus();
+}
+
+function closeChatPanel() {
+  setChatPeer(null);
+}
+
+function sendChat() {
+  if (!chatPeer) return log('Avval chat uchun foydalanuvchini tanlang');
+  if (!ws || ws.readyState !== WebSocket.OPEN) return log('Avval onlayn bo\'ling');
+  const text = chatInput.value.trim();
+  if (!text) return;
+  ws.send(JSON.stringify({ type: 'message', target: chatPeer.id, text }));
+  chatInput.value = '';
+}
+
 // Event bindings
 connectBtn.onclick = () => connectWS();
 outgoingCancelBtn.onclick = () => hangup('cancelled');
@@ -129,6 +224,14 @@ incomingDeclineBtn.onclick = () => rejectIncoming();
 hangupBtn.onclick = () => hangup('hangup');
 if (backBtn) backBtn.onclick = () => hangup('back');
 muteBtn.onclick = () => toggleMute();
+chatSend.onclick = () => sendChat();
+chatClose.onclick = () => closeChatPanel();
+chatInput?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
 
 nameInput.onchange = () => {
   displayName = nameInput.value.trim() || displayName;
@@ -149,6 +252,7 @@ function connectWS() {
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: 'join', name: displayName }));
     log('Signaling ulandi');
+    if (chatPeer) setChatPeer(chatPeer);
   };
 
   ws.onmessage = async ({ data }) => {
@@ -159,6 +263,8 @@ function connectWS() {
       log(`Siz: ${displayName}`);
     } else if (msg.type === 'online') {
       renderOnline(msg.peers || []);
+    } else if (msg.type === 'message') {
+      handleIncomingMessage(msg);
     } else if (msg.type === 'call') {
       handleIncomingCall(msg);
     } else if (msg.type === 'busy' || msg.type === 'call-reject') {
@@ -178,13 +284,14 @@ function connectWS() {
       endCall();
     } else if (msg.type === 'error' && msg.reason) {
       log(`Xato: ${msg.reason}`);
-      endCall();
+      if (callState !== CallState.IDLE) endCall();
     }
   };
 
   ws.onclose = () => {
     log('Signaling uzildi');
     cleanupPeer(true);
+    if (chatPeer) setChatPeer(chatPeer);
   };
 
   ws.onerror = (err) => {
@@ -195,6 +302,7 @@ function connectWS() {
 
 // Online list
 function renderOnline(peers) {
+  onlinePeers = new Map(peers.map((p) => [p.id, p]));
   onlineEl.innerHTML = '';
   const others = peers.filter((p) => p.id !== selfId);
   if (!others.length) {
@@ -202,20 +310,52 @@ function renderOnline(peers) {
     return;
   }
   others.forEach((peer) => {
-    const btn = document.createElement('button');
-    btn.textContent = peer.name || peer.id;
-    btn.onclick = () => initiateCall(peer);
-    onlineEl.appendChild(btn);
+    const item = document.createElement('div');
+    item.className = 'online-item';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'online-name';
+    nameEl.textContent = peer.name || peer.id;
+    const actions = document.createElement('div');
+    actions.className = 'online-actions';
+    const callBtn = document.createElement('button');
+    callBtn.className = 'primary pill small';
+    callBtn.textContent = 'Qo\'ng\'iroq';
+    callBtn.onclick = () => initiateCall(peer);
+    const chatBtn = document.createElement('button');
+    chatBtn.className = 'ghost pill small';
+    chatBtn.textContent = 'Chat';
+    chatBtn.onclick = () => openChat({ id: peer.id, name: peer.name || peer.id });
+    actions.appendChild(callBtn);
+    actions.appendChild(chatBtn);
+    item.appendChild(nameEl);
+    item.appendChild(actions);
+    onlineEl.appendChild(item);
   });
+  if (chatPeer) setChatPeer(chatPeer);
+}
+
+function handleIncomingMessage(msg) {
+  const peerId = msg.from === selfId ? msg.target : msg.from;
+  if (!peerId || typeof msg.text !== 'string') return;
+  const payload = {
+    fromSelf: msg.from === selfId,
+    text: msg.text,
+    ts: msg.ts || Date.now()
+  };
+  addChatMessage(peerId, payload);
+  if (!chatPeer || chatPeer.id !== peerId) {
+    const name = getPeerName(peerId, msg.name || 'Hamkor');
+    log(`Yangi xabar: ${name}`);
+  }
 }
 
 // Call flows
 function initiateCall(peer) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return log('Avval online bo‘ling');
+  if (!ws || ws.readyState !== WebSocket.OPEN) return log("Avval onlayn bo'lish");
   if (callState !== CallState.IDLE) return log('Hozircha band');
   currentPeer = { id: peer.id, name: peer.name || peer.id };
   updatePeerLabels();
-  setState(CallState.CALLING_OUT, `Qo‘ng‘iroq: ${currentPeer.name}`);
+  setState(CallState.CALLING_OUT, `Qo'ng'iroq: ${currentPeer.name}`);
   ws.send(JSON.stringify({ type: 'call', target: currentPeer.id }));
   setRinging('Chaqirilmoqda...');
 }
@@ -227,8 +367,8 @@ function handleIncomingCall(msg) {
   }
   currentPeer = { id: msg.from, name: msg.name || msg.from };
   updatePeerLabels();
-  setState(CallState.RINGING_IN, `${currentPeer.name} qo‘ng‘iroq qilmoqda`);
-  setRinging('Kirish qo‘ng‘irog‘i');
+  setState(CallState.RINGING_IN, `${currentPeer.name} qo'ng'iroq qilmoqda`);
+  setRinging("Kirish qo'ng'irog'i");
 }
 
 async function acceptIncoming() {
@@ -300,7 +440,7 @@ function endCall() {
   setRinging('');
   cleanupPeer();
   currentPeer = null;
-  setState(CallState.IDLE, 'Bo‘sh');
+  setState(CallState.IDLE, "Bo'sh");
 }
 
 // WebRTC helpers
@@ -417,5 +557,8 @@ function updatePeerLabels() {
 }
 
 // Init UI
+setChatPeer(null);
 setState(CallState.IDLE);
 updateDebug();
+
+
