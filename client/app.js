@@ -4,7 +4,8 @@ const connectBtn = document.getElementById('connect');
 const muteBtn = document.getElementById('mute');
 const hangupBtn = document.getElementById('hangup');
 const backBtn = document.getElementById('back');
-const onlineEl = document.getElementById('online');
+const onlineCallEl = document.getElementById('online-call');
+const onlineChatEl = document.getElementById('online-chat');
 const logEl = document.getElementById('log');
 const statusEl = document.getElementById('status');
 const ringEl = document.getElementById('ring');
@@ -17,6 +18,12 @@ const debugState = document.getElementById('debug-state');
 const debugPC = document.getElementById('debug-pc');
 const debugICE = document.getElementById('debug-ice');
 const debugSignal = document.getElementById('debug-signal');
+const routeEls = {
+  home: document.getElementById('route-home'),
+  call: document.getElementById('route-call'),
+  chat: document.getElementById('route-chat')
+};
+const routeButtons = document.querySelectorAll('[data-route-btn]');
 const chatPeerLabel = document.getElementById('chat-peer-label');
 const chatMessagesEl = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
@@ -58,6 +65,7 @@ let callStart = null;
 let chatPeer = null; // { id, name }
 const chatHistory = new Map(); // id -> messages
 let onlinePeers = new Map();
+let currentRoute = 'home';
 
 let displayName = window.DISPLAY_NAME || localStorage.getItem('displayName') || `User-${Math.random().toString(16).slice(2, 6)}`;
 nameInput.value = displayName;
@@ -76,6 +84,22 @@ const showScreen = (name) => {
   Object.entries(screens).forEach(([key, el]) => {
     if (!el) return;
     el.classList.toggle('active', key === name);
+  });
+};
+
+const setRoute = (route) => {
+  if (!routeEls[route]) return;
+  currentRoute = route;
+  Object.entries(routeEls).forEach(([key, el]) => {
+    if (!el) return;
+    el.classList.toggle('active', key === route);
+  });
+  routeButtons.forEach((btn) => {
+    if (btn.dataset.routeBtn === route) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
   });
 };
 
@@ -199,6 +223,7 @@ function addChatMessage(peerId, payload) {
 }
 
 function openChat(peer) {
+  setRoute('chat');
   setChatPeer(peer);
   chatInput.focus();
 }
@@ -231,6 +256,9 @@ chatInput?.addEventListener('keydown', (e) => {
     e.preventDefault();
     sendChat();
   }
+});
+routeButtons.forEach((btn) => {
+  btn.onclick = () => setRoute(btn.dataset.routeBtn);
 });
 
 nameInput.onchange = () => {
@@ -301,12 +329,12 @@ function connectWS() {
 }
 
 // Online list
-function renderOnline(peers) {
-  onlinePeers = new Map(peers.map((p) => [p.id, p]));
-  onlineEl.innerHTML = '';
+function renderOnlineList(container, peers, mode) {
+  if (!container) return;
+  container.innerHTML = '';
   const others = peers.filter((p) => p.id !== selfId);
   if (!others.length) {
-    onlineEl.textContent = 'Hozircha hech kim onlayn emas';
+    container.textContent = 'Hozircha hech kim onlayn emas';
     return;
   }
   others.forEach((peer) => {
@@ -317,20 +345,28 @@ function renderOnline(peers) {
     nameEl.textContent = peer.name || peer.id;
     const actions = document.createElement('div');
     actions.className = 'online-actions';
-    const callBtn = document.createElement('button');
-    callBtn.className = 'primary pill small';
-    callBtn.textContent = 'Qo\'ng\'iroq';
-    callBtn.onclick = () => initiateCall(peer);
+    if (mode === 'call') {
+      const callBtn = document.createElement('button');
+      callBtn.className = 'primary pill small';
+      callBtn.textContent = 'Qo\'ng\'iroq';
+      callBtn.onclick = () => initiateCall(peer);
+      actions.appendChild(callBtn);
+    }
     const chatBtn = document.createElement('button');
-    chatBtn.className = 'ghost pill small';
+    chatBtn.className = mode === 'call' ? 'ghost pill small' : 'primary pill small';
     chatBtn.textContent = 'Chat';
     chatBtn.onclick = () => openChat({ id: peer.id, name: peer.name || peer.id });
-    actions.appendChild(callBtn);
     actions.appendChild(chatBtn);
     item.appendChild(nameEl);
     item.appendChild(actions);
-    onlineEl.appendChild(item);
+    container.appendChild(item);
   });
+}
+
+function renderOnline(peers) {
+  onlinePeers = new Map(peers.map((p) => [p.id, p]));
+  renderOnlineList(onlineCallEl, peers, 'call');
+  renderOnlineList(onlineChatEl, peers, 'chat');
   if (chatPeer) setChatPeer(chatPeer);
 }
 
@@ -351,6 +387,7 @@ function handleIncomingMessage(msg) {
 
 // Call flows
 function initiateCall(peer) {
+  setRoute('call');
   if (!ws || ws.readyState !== WebSocket.OPEN) return log("Avval onlayn bo'lish");
   if (callState !== CallState.IDLE) return log('Hozircha band');
   currentPeer = { id: peer.id, name: peer.name || peer.id };
@@ -361,6 +398,7 @@ function initiateCall(peer) {
 }
 
 function handleIncomingCall(msg) {
+  setRoute('call');
   if (callState !== CallState.IDLE) {
     ws?.send(JSON.stringify({ type: 'busy', target: msg.from }));
     return;
@@ -557,6 +595,7 @@ function updatePeerLabels() {
 }
 
 // Init UI
+setRoute('home');
 setChatPeer(null);
 setState(CallState.IDLE);
 updateDebug();

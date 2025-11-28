@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="uz">
 <head>
   <meta charset="UTF-8">
@@ -14,28 +14,108 @@
         <img src="logo-wca.svg" alt="WCA" class="logo">
         <div>
           <p class="eyebrow">WiFi-Call-App</p>
-          <h1>Tezkor LAN/Internet audio qo‘ng‘iroqlar</h1>
+          <h1>Tezkor LAN/Internet audio qo'ng'iroqlar</h1>
         </div>
+      </div>
+      <div class="top-nav">
+        <button class="ghost pill small active" data-route-btn="home">Bosh sahifa</button>
+        <button class="ghost pill small" data-route-btn="call">Qo'ng'iroq</button>
+        <button class="ghost pill small" data-route-btn="chat">Chat</button>
       </div>
     </header>
 
-    <!-- Home Screen -->
-    <section class="screen active" id="screen-home">
+    <section class="card glass compact status-card">
+      <div class="status-chip">Holat: <span id="status">tayyor emas</span></div>
+      <div class="ringing" id="ring"></div>
+      <button id="connect" class="primary full">Onlayn bo'lish</button>
+    </section>
+
+    <!-- Home Route -->
+    <section class="route active" id="route-home">
       <div class="card glass">
         <label for="name">Ismingiz/Nickname</label>
         <input id="name" type="text" placeholder="Masalan: Ali" autocomplete="off">
         <p class="hint">Saqlanadi (localStorage), onlaynga chiqqanda serverga yuboriladi.</p>
       </div>
+      <div class="card glass">
+        <div class="section-title">Boshlash</div>
+        <p class="lede">Avval onlayn bo'ling, keyin Qo'ng'iroq yoki Chat sahifasiga o'tib foydalanuvchini tanlang.</p>
+      </div>
+    </section>
 
-      <div class="card glass compact">
-        <div class="status-chip">Holat: <span id="status">tayyor emas</span></div>
-        <div class="ringing" id="ring"></div>
-        <button id="connect" class="primary full">Onlayn bo'lish</button>
+    <!-- Call Route -->
+    <section class="route" id="route-call">
+      <div class="card glass">
+        <div class="section-title">Onlayn foydalanuvchilar (Qo'ng'iroq)</div>
+        <div id="online-call" class="online-list">Ulanish tugmasini bosing</div>
       </div>
 
+      <section class="screen active" id="screen-home">
+        <div class="card glass center">
+          <div class="call-title">Qo'ng'iroq uchun foydalanuvchini tanlang</div>
+          <div class="muted">Onlayn ro'yxatdan foydalanuvchini tanlab Qo'ng'iroq bosing</div>
+        </div>
+      </section>
+
+      <!-- Outgoing Call Screen -->
+      <section class="screen" id="screen-calling">
+        <div class="card glass center">
+          <div class="logo-wave"></div>
+          <div class="call-title">Chaqirilmoqda...</div>
+          <div class="call-name" id="outgoing-name"></div>
+          <div class="ringing">Javob kutilmoqda</div>
+        </div>
+        <button id="outgoing-cancel" class="danger full pill">Bekor qilish</button>
+      </section>
+
+      <!-- Incoming Call Screen -->
+      <section class="screen" id="screen-incoming">
+        <div class="card glass center">
+          <div class="waveform">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div class="call-title">Kirish qo'ng'irog'i</div>
+          <div class="call-name" id="incoming-name"></div>
+        </div>
+        <div class="floating-actions">
+          <button id="incoming-decline" class="round danger">×</button>
+          <button id="incoming-accept" class="round primary">✓</button>
+        </div>
+      </section>
+
+      <!-- In-Call Screen -->
+      <section class="screen" id="screen-incall">
+        <div class="card glass center">
+          <div class="waveform solid">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div class="call-title" id="incall-name"></div>
+          <div class="status-chip timer">Vaqt: <span id="call-timer">00:00</span></div>
+        </div>
+        <div class="btns spaced">
+          <button id="mute" class="secondary pill" disabled>Mute</button>
+          <button id="hangup" class="danger pill" disabled>Uzish</button>
+          <button id="back" class="ghost pill">Orqaga</button>
+        </div>
+      </section>
+
+      <section class="card glass logs">
+        <div class="section-title">Log</div>
+        <div id="log"></div>
+        <div class="debug">
+          <div>Call state: <span id="debug-state">idle</span></div>
+          <div>PC: <span id="debug-pc">none</span></div>
+          <div>ICE: <span id="debug-ice">none</span></div>
+          <div>Signal: <span id="debug-signal">none</span></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- Chat Route -->
+    <section class="route" id="route-chat">
       <div class="card glass">
-        <div class="section-title">Onlayn foydalanuvchilar</div>
-        <div id="online" class="online-list">Ulanish tugmasini bosing</div>
+        <div class="section-title">Onlayn foydalanuvchilar (Chat)</div>
+        <div id="online-chat" class="online-list">Ulanish tugmasini bosing</div>
       </div>
 
       <section class="card glass chat" id="chat-panel">
@@ -52,59 +132,6 @@
           <button id="chat-send" class="primary pill" disabled>Yuborish</button>
         </div>
       </section>
-    </section>
-
-    <!-- Outgoing Call Screen -->
-    <section class="screen" id="screen-calling">
-      <div class="card glass center">
-        <div class="logo-wave"></div>
-        <div class="call-title">Chaqirilmoqda...</div>
-        <div class="call-name" id="outgoing-name"></div>
-        <div class="ringing">Javob kutilmoqda</div>
-      </div>
-      <button id="outgoing-cancel" class="danger full pill">Bekor qilish</button>
-    </section>
-
-    <!-- Incoming Call Screen -->
-    <section class="screen" id="screen-incoming">
-      <div class="card glass center">
-        <div class="waveform">
-          <span></span><span></span><span></span><span></span>
-        </div>
-        <div class="call-title">Kirish qo‘ng‘irog‘i</div>
-        <div class="call-name" id="incoming-name"></div>
-      </div>
-      <div class="floating-actions">
-        <button id="incoming-decline" class="round danger">✕</button>
-        <button id="incoming-accept" class="round primary">✓</button>
-      </div>
-    </section>
-
-    <!-- In-Call Screen -->
-    <section class="screen" id="screen-incall">
-      <div class="card glass center">
-        <div class="waveform solid">
-          <span></span><span></span><span></span><span></span>
-        </div>
-        <div class="call-title" id="incall-name"></div>
-        <div class="status-chip timer">Vaqt: <span id="call-timer">00:00</span></div>
-      </div>
-      <div class="btns spaced">
-        <button id="mute" class="secondary pill" disabled>Mute</button>
-        <button id="hangup" class="danger pill" disabled>Uzish</button>
-        <button id="back" class="ghost pill">Orqaga</button>
-      </div>
-    </section>
-
-    <section class="card glass logs">
-      <div class="section-title">Log</div>
-      <div id="log"></div>
-      <div class="debug">
-        <div>Call state: <span id="debug-state">idle</span></div>
-        <div>PC: <span id="debug-pc">none</span></div>
-        <div>ICE: <span id="debug-ice">none</span></div>
-        <div>Signal: <span id="debug-signal">none</span></div>
-      </div>
     </section>
 
     <audio id="remote" autoplay></audio>

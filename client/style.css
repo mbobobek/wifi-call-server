@@ -40,7 +40,13 @@ body {
 .eyebrow { margin: 0; color: var(--gold); letter-spacing: 0.08em; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; }
 h1 { margin: 2px 0 4px; font-size: 1.4rem; }
 .lede { margin: 0; color: var(--muted); }
+.top-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.top-nav button.active { background: linear-gradient(135deg, var(--emerald), var(--emerald-strong)); color: #03130f; border-color: transparent; }
 .hidden { display: none !important; }
+.route { display: none; flex-direction: column; gap: 12px; }
+.route.active { display: flex; }
+.status-card { margin: 0 0 12px; }
+.status-card button { margin-top: 8px; }
 .screen { display: none; flex-direction: column; gap: 12px; min-height: 80vh; }
 .screen.active { display: flex; }
 .glass {
