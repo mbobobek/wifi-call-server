@@ -3,6 +3,8 @@ import fetch from 'node-fetch';
 const token = process.env.BOT_TOKEN;
 if (!token) throw new Error('BOT_TOKEN kerak');
 
+const SERVER_URL = process.env.SERVER_URL || 'https://wifi-call-server.onrender.com';
+
 const api = (method, body) =>
   fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: 'POST',
@@ -11,6 +13,7 @@ const api = (method, body) =>
   });
 
 let offset = 0;
+
 async function loop() {
   try {
     const res = await api('getUpdates', { timeout: 30, offset });
@@ -21,7 +24,15 @@ async function loop() {
       if (msg?.text === '/start') {
         await api('sendMessage', {
           chat_id: msg.chat.id,
-          text: 'WiFi Call: pastdagi “WiFi Call” tugmasini bosing, sahifa ochilgach Connect ni bosing va qo‘ng‘iroq qiling.'
+          text: 'WiFi Call: pastdagi "WiFi Call" tugmasini bosing, sahifa ochilgach Connect ni bosing va qo\'ng\'iroq qiling.',
+          reply_markup: {
+            inline_keyboard: [[
+              {
+                text: '📞 WiFi Call',
+                url: SERVER_URL
+              }
+            ]]
+          }
         });
       }
     }
